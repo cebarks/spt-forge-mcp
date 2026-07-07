@@ -7,17 +7,10 @@ import { z } from "zod/v4";
 const BASE_URL = "https://forge.sp-tarkov.com/api/v0";
 const USER_AGENT = "spt-forge-mcp/1.0.0";
 
-function getHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-    "User-Agent": USER_AGENT,
-  };
-  const token = process.env.QUMA_FORGE_TOKEN;
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-  return headers;
-}
+const HEADERS = {
+  Accept: "application/json",
+  "User-Agent": USER_AGENT,
+};
 
 async function forgeGet(
   path: string,
@@ -32,7 +25,7 @@ async function forgeGet(
     }
   }
 
-  const response = await fetch(url.toString(), { headers: getHeaders() });
+  const response = await fetch(url.toString(), { headers: HEADERS });
 
   if (response.status === 429) {
     const retryAfter = response.headers.get("Retry-After") ?? "unknown";

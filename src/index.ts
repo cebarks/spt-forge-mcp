@@ -12,6 +12,8 @@ const HEADERS = {
   "User-Agent": USER_AGENT,
 };
 
+const MAX_RETRIES = 3;
+
 async function forgeGet(
   path: string,
   params?: Record<string, string | undefined>
@@ -25,21 +27,28 @@ async function forgeGet(
     }
   }
 
-  const response = await fetch(url.toString(), { headers: HEADERS });
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const response = await fetch(url.toString(), { headers: HEADERS });
 
-  if (response.status === 429) {
-    const retryAfter = response.headers.get("Retry-After") ?? "unknown";
-    throw new Error(
-      `Rate limited by Forge API. Retry after ${retryAfter} seconds.`
-    );
+    if (response.status === 429) {
+      if (attempt === MAX_RETRIES) {
+        throw new Error("Rate limited by Forge API after multiple retries.");
+      }
+      const retryAfter = parseInt(response.headers.get("Retry-After") ?? "30", 10);
+      const delay = (Number.isFinite(retryAfter) ? retryAfter : 30) * 1000;
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Forge API error ${response.status}: ${body}`);
+    }
+
+    return response.json();
   }
 
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Forge API error ${response.status}: ${body}`);
-  }
-
-  return response.json();
+  throw new Error("Unreachable");
 }
 
 function formatModSummary(mod: any): string {
